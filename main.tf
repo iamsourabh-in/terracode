@@ -181,15 +181,16 @@ resource "aws_launch_template" "ec2_launch_template" {
 }
 
 resource "aws_autoscaling_group" "launch_template_asg" {
-  availability_zones = ["us-east-1a"]
-  desired_capacity   = 1
-  max_size           = 1
+  availability_zones = ["us-east-1a","us-east-1b","us-east-1c","us-east-1d"]
+  desired_capacity   = 2
+  max_size           = 3
   min_size           = 1
 
   launch_template {
     id      = aws_launch_template.ec2_launch_template.id
     version = "$Latest"
   }
+  target_group_arns = [ aws_lb_target_group.alb_target_group.arn ]
 }
 
 # Create a new ALB Target Group attachment
@@ -198,3 +199,19 @@ resource "aws_autoscaling_attachment" "asg_attachment" {
   alb_target_group_arn   = aws_lb_target_group.alb_target_group.arn
 }
 
+resource "aws_cloudwatch_metric_alarm" "alarm_cpu_utilization" {
+  alarm_name          = "alarm-cpu-utilization"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = "2"
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = "120"
+  statistic           = "Average"
+  threshold           = "80"
+
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.launch_template_asg.name
+  }
+
+  alarm_description = "This metric monitors ec2 cpu utilization"
+}
