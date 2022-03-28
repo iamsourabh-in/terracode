@@ -78,12 +78,12 @@ resource "aws_budgets_budget" "ec2" {
 # }
 
 
+# ---------SecurityGroup (allowing http and ssh)
 
 resource "aws_security_group" "ec_launch_template_security_group" {
   name        = "ec_launch_template_security_group"
   description = "Allow TLS inbound traffic"
-  vpc_id      = "vpc-01a64cf9cdf93488d"
-
+  vpc_id      = var.default_eu1_vpc_id
   ingress {
     description = "SSH from Anywhere"
     from_port   = 0
@@ -91,7 +91,6 @@ resource "aws_security_group" "ec_launch_template_security_group" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
   ingress {
     description = "Http Request from Anywhere"
     from_port   = 0
@@ -99,54 +98,103 @@ resource "aws_security_group" "ec_launch_template_security_group" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
+  egress {
+    description = "Request from Anywhere"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
   tags = {
-    Name = "allow_ssh_http"
+    Name       = "allow_ssh_http"
+    AWSService = "SecurityGroup"
   }
 }
+
+resource "aws_lb_target_group" "alb_target_group" {
+  name        = "alb-target-group"
+  port        = 80
+  protocol    = "HTTP"
+  vpc_id      = var.default_eu1_vpc_id
+  target_type = "instance"
+  tags = {
+    Name       = "alb-target-group"
+    AWSService = "TargetGroup"
+  }
+}
+
+resource "aws_lb" "my-frontend-alb" {
+  name                       = "my-frontend-alb"
+  internal                   = false
+  load_balancer_type         = "application"
+  security_groups            = [aws_security_group.ec_launch_template_security_group.id]
+  subnets                    = [for subnet in var.aws_subnets : subnet]
+  enable_deletion_protection = false
+  tags = {
+    AWSService = "ALB"
+  }
+}
+
+
+
+resource "aws_lb_listener" "front_end" {
+  load_balancer_arn = aws_lb.my-frontend-alb.arn
+  port              = "80"
+  protocol          = "HTTP"
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.alb_target_group.arn
+  }
+}
+
 
 # Ec2 Area
 
 
 
-resource "aws_launch_template" "ec_launch_template" {
-
+resource "aws_launch_template" "ec2_launch_template" {
   name                                 = "ec_launch_template"
-
   image_id                             = "ami-0c02fb55956c7d316"
   instance_type                        = "t2.micro"
   instance_initiated_shutdown_behavior = "terminate"
-
+  vpc_security_group_ids               = [aws_security_group.ec_launch_template_security_group.id]
+  key_name                             = "devcache.in"
+  user_data                            = filebase64("${path.module}/scripts/ec2-user-data.sh")
   block_device_mappings {
     device_name = "/dev/xvda"
-
     ebs {
       volume_size = 8
-
     }
   }
-  key_name = "devcache.in"
-
   capacity_reservation_specification {
     capacity_reservation_preference = "open"
   }
-
-  instance_market_options {
-    market_type = "spot"
-  }
-  vpc_security_group_ids = [aws_security_group.ec_launch_template_security_group.id]
-
   monitoring {
     enabled = true
   }
-
   tag_specifications {
     resource_type = "instance"
-
     tags = {
-
+      AWSService = "LaunchTemplate"
     }
   }
-
-  user_data = filebase64("${path.module}/scripts/ec2-user-data.sh")
 }
+
+resource "aws_autoscaling_group" "launch_template_asg" {
+  availability_zones = ["us-east-1a"]
+  desired_capacity   = 1
+  max_size           = 1
+  min_size           = 1
+
+  launch_template {
+    id      = aws_launch_template.ec2_launch_template.id
+    version = "$Latest"
+  }
+}
+
+# Create a new ALB Target Group attachment
+resource "aws_autoscaling_attachment" "asg_attachment" {
+  autoscaling_group_name = aws_autoscaling_group.launch_template_asg.id
+  alb_target_group_arn   = aws_lb_target_group.alb_target_group.arn
+}
+
