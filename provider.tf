@@ -10,5 +10,5 @@ terraform {
 
 provider "aws" {
   profile = "dev_admin_developer_cache"
-  region  = "us-east-1"
+  region  = "ap-south-1"
 }
