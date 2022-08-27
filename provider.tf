@@ -9,6 +9,6 @@ terraform {
 
 
 provider "aws" {
-  profile = "aws_dev_cache_developer"
+  profile = "dev_admin_developer_cache"
   region  = "us-east-1"
 }

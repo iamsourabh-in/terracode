@@ -135,8 +135,6 @@ resource "aws_lb" "my-frontend-alb" {
   }
 }
 
-
-
 resource "aws_lb_listener" "front_end" {
   load_balancer_arn = aws_lb.my-frontend-alb.arn
   port              = "80"
