@@ -2,8 +2,16 @@
 # Terracode
 Practicing Terraform with muptiple providers
 
+HashiCorp Terraform is an infrastructure as code tool that lets you define both cloud and on-prem resources in human-readable configuration files that you can version, reuse, and share. You can then use a consistent workflow to provision and manage all of your infrastructure throughout its lifecycle.
+
 
 ![alt text](https://github.com/iamsourabh-in/terracode/blob/master/docs/images/Terraform_1.webp?raw=true)
+
+
+
+# How Terraform Works
+
+![alt text](https://github.com/iamsourabh-in/terracode/blob/master/docs/images/steps.png?raw=true)
 
 
 ## Examples
@@ -34,7 +42,6 @@ module "random" {
 
 
 ```
-
 
 
 <!-- BEGIN_TF_DOCS -->
