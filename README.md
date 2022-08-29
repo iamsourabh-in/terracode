@@ -1,5 +1,5 @@
 
-![alt text](https://github.com/iamsourabh-in/terracode/blob/master/docs/images/tflogo.webp?raw=true)
+![alt text](https://github.com/iamsourabh-in/terracode/blob/master/docs/images/Terraform_1.webp?raw=true)
 
 # terracode
 Practicing Terraform with muptiple providers
