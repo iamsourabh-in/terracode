@@ -19,3 +19,26 @@
 ```sh
    terraform-docs markdown table --output-file ./readme.md . 
 ```
+
+
+# Terraform Commands
+
+```sh
+
+terraform init
+
+terraform validate 
+
+terraform console
+
+terraform output -json
+
+terraform init -upgrade 
+
+terraform plan
+
+terraform apply -auto-approve
+
+terraform destroy -auto-approve
+
+```
