@@ -1,5 +1,8 @@
+
+![alt text](https://github.com/iamsourabh-in/terracode/blob/master/docs/images/tflogo.webp?raw=true)
+
 # terracode
-An approach to aws using terraform
+Practicing Terraform with muptiple providers
 
 ## Examples
 
