@@ -13,3 +13,8 @@ variable "default_vpc_id" {
   type = string
   default = "vpc-01a64cf9cdf93488d"  
 }
+
+variable "aws_region"{
+  type = string
+  default = "ap-south-1"
+}

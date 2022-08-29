@@ -8,9 +8,8 @@ data "aws_ami" "ec2_infra_ami" {
   owners = ["137112412989"] # Canonical
 }
 
-# Security Group
-resource "aws_security_group" "ec2_infra_security_group" {
-  name        = "ec_launch_template_security_group"
+resource "aws_security_group" "ec2_infra_ssh_security_group" {
+  name        = "ec2_infra_ssh_security_group"
   description = "Allow TLS inbound traffic"
   vpc_id      = var.default_vpc_id
   ingress {
@@ -20,6 +19,44 @@ resource "aws_security_group" "ec2_infra_security_group" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+   egress {
+    description = "Request from Anywhere"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+# Security Group
+resource "aws_security_group" "ec2_infra_alb_to_ec2_security_group" {
+  name        = "ec2_infra_alb_to_ec2_security_group"
+  description = "Allow TLS inbound traffic"
+  vpc_id      = var.default_vpc_id
+  ingress {
+    description = "Http Request from Anywhere"
+    from_port   = 0
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    security_groups = [aws_security_group.ec2_infra_alb_security_group.id]
+  }
+  egress {
+    description = "Request from Anywhere"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  tags = {
+    Name       = "allow_ssh_http"
+    AWSService = "SecurityGroup"
+  }
+}
+
+resource "aws_security_group" "ec2_infra_alb_security_group" {
+  name        = "ec2_infra_alb_security_group"
+  description = "Allow TLS inbound traffic"
+  vpc_id      = var.default_vpc_id
   ingress {
     description = "Http Request from Anywhere"
     from_port   = 0
@@ -40,14 +77,20 @@ resource "aws_security_group" "ec2_infra_security_group" {
   }
 }
 
+resource "aws_key_pair" "ec2_infra_key_pair" {
+  key_name   = "Terraform-test"
+  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQD3F6tyPEFEzV0LX3X8BsXdMsQz1x2cEikKDEY0aIj41qgxMCP/iteneqXSIFZBp5vizPvaoIR3Um9xK7PGoW8giupGn+EPuxIA4cDM4vzOqOkiMPhz5XK0whEjkVzTo4+S0puvDZuwIsdiW9mxhJc7tgBNL0cYlWSYVkz4G/fslNfRPW5mYAM49f4fhtxPb5ok4Q2Lg9dPKVHO/Bgeu5woMc7RY0p1ej6D4CKFE6lymSDJpW0YHX/wqE9+cfEauh7xZcG0q9t2ta6F6fmX0agvpFyZo8aFbXeUBr7osSCJNgvavWbM/06niWrOvYX2xwWdhXmXSrbX8ZbabVohBK41 email@example.com"
+
+}
+
 # Launch Template
 resource "aws_launch_template" "ec2_infra_launch_template" {
   name                                 = "ec_launch_template"
   image_id                             = data.aws_ami.ec2_infra_ami.id
   instance_type                        = "t2.micro"
   instance_initiated_shutdown_behavior = "terminate"
-  vpc_security_group_ids               = [aws_security_group.ec2_infra_security_group.id]
-  key_name                             = "devcache.in"
+  vpc_security_group_ids               = [aws_security_group.ec2_infra_ssh_security_group.id, aws_security_group.ec2_infra_alb_to_ec2_security_group.id]
+  key_name                             = aws_key_pair.ec2_infra_key_pair.key_name
   user_data                            = filebase64("${path.module}/scripts/ec2-user-data.sh")
   block_device_mappings {
     device_name = "/dev/xvda"
@@ -82,12 +125,16 @@ resource "aws_lb_target_group" "ec_infra_alb_target_group" {
   }
 }
 
+data "aws_subnet_ids" "ec_infra_aws_subnets" {
+  vpc_id = var.default_vpc_id
+}
+
 resource "aws_lb" "ec2_infra_alb" {
-  name                       = "my-frontend-alb"
+  name                       = "ec2-infra-alb"
   internal                   = false
   load_balancer_type         = "application"
-  security_groups            = [aws_security_group.ec2_infra_security_group.id]
-  subnets                    = [for subnet in var.aws_subnets : subnet]
+  security_groups            = [aws_security_group.ec2_infra_alb_security_group.id]
+  subnets                    = data.aws_subnet_ids.ec_infra_aws_subnets.ids
   enable_deletion_protection = false
   tags = {
     AWSService = "ALB"
@@ -96,7 +143,7 @@ resource "aws_lb" "ec2_infra_alb" {
 
 # Auto Scaling Group
 resource "aws_autoscaling_group" "ec2_infra_auto_scaling_group" {
-  availability_zones = ["us-east-1a","us-east-1b","us-east-1c","us-east-1d"]
+  availability_zones = ["ap-south-1a","ap-south-1b","ap-south-1c"]
   desired_capacity   = 2
   max_size           = 3
   min_size           = 1
@@ -106,6 +153,7 @@ resource "aws_autoscaling_group" "ec2_infra_auto_scaling_group" {
     version = "$Latest"
   }
   target_group_arns = [ aws_lb_target_group.ec_infra_alb_target_group.arn ]
+  
 }
 
 resource "aws_lb_listener" "front_end" {
