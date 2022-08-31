@@ -41,4 +41,11 @@ terraform apply -auto-approve
 
 terraform destroy -auto-approve
 
+
+
+#terraform states Managements
+
+terraform remote push
+
+terraform remote pull
 ```

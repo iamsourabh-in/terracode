@@ -16,6 +16,10 @@ terraform {
       source = "hashicorp/kubernetes"
       version = "2.13.1"
     }
+    azurerm = {
+      source = "hashicorp/azurerm"
+      version = "3.20.0"
+    }
   }
 }
 
@@ -31,4 +35,8 @@ provider "time" {
 
 provider "kubernetes" {
   config_path    = "~/.kube/config"
+}
+
+provider "azurerm" {
+  # Configuration options
 }
